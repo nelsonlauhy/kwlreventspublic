@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent List · KW Living Portal</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/images/logo.ico" />
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Shared styles -->
+  <link href="./css/styles.css" rel="stylesheet">
+
+  <style>
+    /* Table styling (distinct from Company Directory) */
+    #agentTable { font-size: 0.9rem; }
+    #agentTable th { background-color: #f1f5f9; font-weight: 700; }
+    #agentTable tbody tr:nth-child(odd) { background-color: #fafafa; }
+    #agentTable tbody tr:nth-child(even) { background-color: #ffffff; }
+    #agentTable td.col-agent { padding-left: 1.5rem; font-weight: 600; }
+    #agentTable th:first-child { padding-left: 1.5rem; }
+
+    /* Controls */
+    .filter-control {
+      height: 38px;
+      padding: 0.375rem 0.75rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      border-radius: 0.5rem;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      flex-wrap: nowrap; /* keep one row on desktop */
+    }
+    .btn-icon {
+      width: 38px; height: 38px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.5rem;
+    }
+
+    /* Slim widths to avoid wrapping */
+    #branchFilter { width: 130px; }
+    #agentSearch  { width: 220px; }
+
+    /* Mobile: allow wrapping and make inputs full width */
+    @media (max-width: 576px) {
+      .control-row { flex-wrap: wrap !important; }
+      #branchFilter, #agentSearch { flex: 1 1 100%; width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+  <!-- NAVBAR partial -->
+  <div data-include="/partials/navbar.html"></div>
+
+  <!-- CONTENT -->
+  <main class="container py-4">
+    <!-- Header: title + controls -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="row-gap:.5rem;">
+      <h3 class="page-title mb-0 d-flex align-items-center">
+        <i class="bi bi-people-fill me-2"></i>Agent List
+      </h3>
+
+      <div class="control-row">
+        <!-- Branch filter -->
+        <select id="branchFilter" class="form-select filter-control">
+          <option value="ALL">All Branches</option>
+          <option value="WB">WB</option>
+          <option value="NM">NM</option>
+          <option value="MS">MS</option>
+          <option value="YE">YE</option>
+          <option value="ICI">ICI</option>
+        </select>
+
+        <!-- Search -->
+        <input id="agentSearch" class="form-control filter-control" placeholder="Search agent, email, phone, type…"/>
+
+        <!-- Export to Excel (icon button) -->
+        <button id="btnExport" class="btn btn-success btn-icon" type="button"
+                data-bs-toggle="tooltip" title="Export filtered rows to Excel">
+          <i class="bi bi-download"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive bg-white border rounded shadow-sm">
+      <table id="agentTable" class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="min-width:240px">Agent</th>
+            <th style="min-width:120px">Mobile</th>
+            <th style="min-width:220px">Email</th>
+            <th style="min-width:120px">JoinDate</th>
+            <th style="min-width:120px">Type</th>
+            <th style="min-width:100px">Branch</th>
+          </tr>
+        </thead>
+        <tbody id="agentBody">
+          <tr>
+            <td colspan="6" class="text-center py-4">
+              <div class="spinner-border spinner-border-sm me-2"></div>
+              Loading...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav class="mt-3">
+      <ul class="pagination justify-content-center" id="pagination"></ul>
+    </nav>
+  </main>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- MSAL (must load before your auth logic) -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
+  <script src="./js/auth.js" defer></script>
+
+  <!-- 🔸 Load partials BEFORE page logic -->
+  <script src="/js/include.js"></script>
+
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="./js/firebaseConfig.js"></script>
+
+  <!-- SheetJS (Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Page logic -->
+  <script src="./js/agents.js" defer></script>
+
+  <!-- Navbar auth wiring -->
+  <script>
+    // 把 navbar 更新封裝成函數
+    function applyNavbar() {
+      const navEl = document.getElementById("appNav");
+      const navUserEl = document.getElementById("navUser");
+      const acct = window._auth?.getActiveAccount?.();
+
+      if (!navEl || !navUserEl) return false; // partial 未就緒
+
+      if (acct) {
+        navEl.classList.remove("d-none");
+        navUserEl.textContent = `${acct.name || ""}${acct.username ? " · " + acct.username : ""}`;
+      } else {
+        // 未登入：返首頁觸發登入流程
+        location.href = "/index.html";
+      }
+      return true;
+    }
+
+    // 1) partials 載入完成 → 更新 navbar
+    document.addEventListener("partials:loaded", applyNavbar);
+
+    // 2) 讓 auth.js 完成 redirect 處理後可再次刷新
+    window.updateAuthUI = applyNavbar;
+
+    // 3) 輪詢保險（最多 10 次 × 150ms ≈ 1.5s），避免極端時序問題
+    (function poll() {
+      let tries = 0;
+      const timer = setInterval(() => {
+        if (applyNavbar() || ++tries >= 10) clearInterval(timer);
+      }, 150);
+    })();
+
+    // 4) 登出委派（navbar 按鈕係動態插入）
+    document.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "btnLogout") {
+        sessionStorage.removeItem("kwlr_auto_login_done");
+        window._auth?.signOut?.();
+      }
+    });
+
+    // 5) 啟用 Tooltip
+    document.addEventListener("DOMContentLoaded", () => {
+      [...document.querySelectorAll('[data-bs-toggle="tooltip"]')].forEach(el => new bootstrap.Tooltip(el));
+    });
+  </script>
+</body>
+</html>

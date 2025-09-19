@@ -1,0 +1,20 @@
+[[redirects]]
+  from = "/*"
+  to = "/:splat"
+  status = 200
+  force = true
+  conditions = { Host = ["intranet.livingrealtykw.com"] }
+
+[[redirects]]
+  from = "/*"
+  to = "/events-public.html"
+  status = 200
+  force = true
+  conditions = { Host = ["events.livingrealtykw.com"] }
+
+[[redirects]]
+  from = "/*"
+  to = "/events-private.html"
+  status = 200
+  force = true
+  conditions = { Host = ["internalevents.livingrealtykw.com"] }
