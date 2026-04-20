@@ -8,6 +8,7 @@
 // - List view auto-scrolls to current month inside content viewport
 // - List items sorted ascending inside each month
 // - Thumbnail top title format: 27th @ 10:31am
+// - Add to Calendar: Google / Outlook / ICS
 
 (function() {
   // ---------- DOM ----------
@@ -53,6 +54,11 @@
   const evBannerBox = document.getElementById("evBannerBox");
   const evBannerImg = document.getElementById("evBannerImg");
 
+  // Add to Calendar buttons
+  const addCalGoogle = document.getElementById("addCalGoogle");
+  const addCalOutlook = document.getElementById("addCalOutlook");
+  const addCalIcs = document.getElementById("addCalIcs");
+
   // Address + map controls
   const evAddressRow  = document.getElementById("evAddressRow");
   const evAddressText = document.getElementById("evAddressText");
@@ -77,6 +83,7 @@
   let currentView = "month";
   let cursorDate  = truncateToDay(new Date());
   let regTarget = null;
+  let currentDetailEvent = null;
 
   // ---------- Utils ----------
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, m => (
@@ -287,6 +294,139 @@
       hour12: true
     }).toLowerCase().replace(/\s/g, "");
     return `${day} @ ${time}`;
+  }
+
+  function escapeIcsText(str) {
+    return String(str || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/\r?\n/g, "\\n")
+      .replace(/,/g, "\\,")
+      .replace(/;/g, "\\;");
+  }
+
+  function toUtcIcsString(date) {
+    const d = new Date(date);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mi = String(d.getUTCMinutes()).padStart(2, "0");
+    const ss = String(d.getUTCSeconds()).padStart(2, "0");
+    return `${yyyy}${mm}${dd}T${hh}${mi}${ss}Z`;
+  }
+
+  function toGoogleDateString(date) {
+    return toUtcIcsString(date);
+  }
+
+  function buildGoogleCalendarUrl(payload) {
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: payload.title,
+      dates: `${toGoogleDateString(payload.start)}/${toGoogleDateString(payload.end)}`,
+      details: payload.description || "",
+      location: payload.location || ""
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+
+  function buildOutlookCalendarUrl(payload) {
+    const params = new URLSearchParams({
+      path: "/calendar/action/compose",
+      rru: "addevent",
+      subject: payload.title,
+      startdt: payload.start.toISOString(),
+      enddt: payload.end.toISOString(),
+      body: payload.description || "",
+      location: payload.location || ""
+    });
+    return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+  }
+
+  async function getCalendarPayload(ev) {
+    if (!ev) throw new Error("No event selected.");
+
+    const start = toDate(ev.start);
+    if (!start) throw new Error("Event start time not found.");
+
+    const end = toDate(ev.end) || new Date(start.getTime() + 60 * 60 * 1000);
+
+    let resData = null;
+    if (!(ev.address || ev.hmapsUrl || ev.mapsUrl || ev.mapsPlaceId || (isFinite(ev.lat) && isFinite(ev.lng)))) {
+      resData = await fetchResourceDataByAny(ev).catch(() => null);
+    }
+
+    const meta = pickAddrMeta(ev, resData);
+    const location = meta.address || ev.resourceName || resData?.name || "";
+
+    const detailText = stripHtmlToText(ev.detailDescription || "");
+    const descParts = [];
+
+    if (ev.description) descParts.push(ev.description);
+    if (detailText) descParts.push(detailText);
+    if (ev.branch) descParts.push(`Branch: ${ev.branch}`);
+    if (location) descParts.push(`Location: ${location}`);
+
+    const description = descParts.join("\n\n");
+
+    return {
+      title: ev.title || "Event",
+      start,
+      end,
+      location,
+      description
+    };
+  }
+
+  async function openGoogleCalendar() {
+    const payload = await getCalendarPayload(currentDetailEvent);
+    window.open(buildGoogleCalendarUrl(payload), "_blank", "noopener");
+  }
+
+  async function openOutlookCalendar() {
+    const payload = await getCalendarPayload(currentDetailEvent);
+    window.open(buildOutlookCalendarUrl(payload), "_blank", "noopener");
+  }
+
+  async function downloadIcsFile() {
+    const payload = await getCalendarPayload(currentDetailEvent);
+    const uid = `event-${Date.now()}@kwliving-events`;
+    const stamp = toUtcIcsString(new Date());
+
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//KW Living//Event Calendar//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:${uid}`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${toUtcIcsString(payload.start)}`,
+      `DTEND:${toUtcIcsString(payload.end)}`,
+      `SUMMARY:${escapeIcsText(payload.title)}`,
+      `DESCRIPTION:${escapeIcsText(payload.description)}`,
+      `LOCATION:${escapeIcsText(payload.location)}`,
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const safeName = (payload.title || "event")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_");
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeName || "event"}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   // ---------- Banner helpers ----------
@@ -827,6 +967,8 @@
     const canReg = canRegister(ev);
     const display = getEventDisplayColors(ev);
 
+    currentDetailEvent = ev;
+
     if (evTitleEl) {
       evTitleEl.innerHTML = `
         <span class="me-2" style="display:inline-block;width:.9rem;height:.9rem;border-radius:50%;background:${esc(display.bg)};vertical-align:baseline;"></span>
@@ -1084,6 +1226,40 @@
       btnSubmitReg.disabled = false;
     }
   });
+
+  // ---------- Add to Calendar ----------
+  if (addCalGoogle) {
+    addCalGoogle.addEventListener("click", async () => {
+      try {
+        await openGoogleCalendar();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Unable to add this event to Google Calendar.");
+      }
+    });
+  }
+
+  if (addCalOutlook) {
+    addCalOutlook.addEventListener("click", async () => {
+      try {
+        await openOutlookCalendar();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Unable to add this event to Outlook.");
+      }
+    });
+  }
+
+  if (addCalIcs) {
+    addCalIcs.addEventListener("click", async () => {
+      try {
+        await downloadIcsFile();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Unable to download calendar file.");
+      }
+    });
+  }
 
   // ---------- Navigation ----------
   function gotoToday() {
