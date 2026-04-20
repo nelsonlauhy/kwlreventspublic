@@ -6,6 +6,8 @@
 // - Filter by branch / search
 // - Event details modal + registration
 // - List view auto-scrolls to current month inside content viewport
+// - List items sorted ascending inside each month
+// - Thumbnail top title format: 27th @ 10:31am
 
 (function() {
   // ---------- DOM ----------
@@ -267,6 +269,26 @@
     });
   }
 
+  function getOrdinalDay(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${n}st`;
+    if (mod10 === 2 && mod100 !== 12) return `${n}nd`;
+    if (mod10 === 3 && mod100 !== 13) return `${n}rd`;
+    return `${n}th`;
+  }
+
+  function formatThumbTopTitle(startDate) {
+    if (!startDate) return "";
+    const day = getOrdinalDay(startDate.getDate());
+    const time = startDate.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    }).toLowerCase().replace(/\s/g, "");
+    return `${day} @ ${time}`;
+  }
+
   // ---------- Banner helpers ----------
   function pickBannerUrl(ev) {
     const nested = (obj, path) => {
@@ -483,6 +505,13 @@
     const parts = [];
     Object.keys(groups).sort().forEach(key => {
       const g = groups[key];
+
+      g.events.sort((a, b) => {
+        const da = toDate(a.start)?.getTime() || 0;
+        const db = toDate(b.start)?.getTime() || 0;
+        return da - db;
+      });
+
       parts.push(`<div class="month-header" data-month-key="${esc(key)}">${esc(g.label)}</div>`);
       for (const e of g.events) parts.push(renderEventCard(e));
     });
@@ -495,6 +524,8 @@
     const start = toDate(e.start);
     const end   = toDate(e.end) || start;
     const dateLine = `${fmtDateTime(start)} – ${fmtDateTime(end)}`;
+    const thumbTopTitle = formatThumbTopTitle(start);
+
     const remaining = (typeof e.remaining === "number") ? e.remaining : null;
     const capacity  = (typeof e.capacity === "number") ? e.capacity : null;
     const remainTxt = (remaining != null && capacity != null)
@@ -512,6 +543,7 @@
     return `
       <div class="${cardClass}" data-id="${esc(e._id)}" role="button" aria-label="${esc(e.title || 'Event')}">
         <div class="event-thumb">
+          <div class="thumb-top-title">${esc(thumbTopTitle)}</div>
           <div class="thumb-box">
             ${thumbHtml}
           </div>
