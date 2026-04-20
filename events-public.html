@@ -9,30 +9,68 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="/images/logo.ico" />
 
-  <!-- Bootstrap CSS & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="./css/styles.css?v=20260420-1" rel="stylesheet">
+  <link href="./css/styles.css?v=20260420-2" rel="stylesheet">
 
   <style>
+    html, body {
+      height: 100%;
+    }
+
+    body.bg-light {
+      overflow: hidden;
+    }
+
     .page-title { display:flex; align-items:center; gap:.5rem; }
     .page-title img.logo { height:50px; width:auto; display:block; }
-    .filter-control { height: 38px; padding: 0.375rem 0.75rem; font-size: .95rem; line-height:1.5; border-radius:.5rem; }
+
+    .filter-control {
+      height: 38px;
+      padding: 0.375rem 0.75rem;
+      font-size: .95rem;
+      line-height:1.5;
+      border-radius:.5rem;
+    }
+
     .control-row { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
     #branchFilter { width:180px; }
     #searchInput { width:260px; }
+
     @media (max-width:576px){
       .control-row{flex-wrap:wrap!important;}
       #branchFilter,#searchInput{width:100%;flex:1 1 100%;}
     }
 
-    /* List view */
-    .month-header { font-weight:700; font-size:1.1rem; margin:1.25rem 0 .5rem; color:#334155; }
+    .events-page-shell{
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-    /* Event card with left thumbnail */
+    .top-controls{
+      flex: 0 0 auto;
+    }
+
+    .content-viewport{
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 4px;
+      padding-bottom: 1rem;
+    }
+
+    .month-header {
+      font-weight:700;
+      font-size:1.1rem;
+      margin:1.25rem 0 .5rem;
+      color:#334155;
+      scroll-margin-top: 12px;
+    }
+
     .event-card {
       border:1px solid #e9ecef;
       border-radius:.75rem;
@@ -67,7 +105,6 @@
       border-color:#d1d5db !important;
     }
 
-    /* Thumbnail column */
     .event-thumb { flex:0 0 140px; width:140px; }
     @media (max-width: 480px){ .event-thumb { flex-basis: 110px; width:110px; } }
 
@@ -96,27 +133,23 @@
       line-height:1.2;
     }
 
-    /* Body column */
     .event-body { flex:1 1 auto; min-width:0; }
     .event-title { font-weight:700; }
     .event-meta { color:#6c757d; font-size:.9rem; }
     .badge-branch { background:#eef2ff; color:#3730a3; }
     .badge-room { background:#ecfeff; color:#155e75; }
-
-    /* Right column */
     .event-aside { text-align:right; white-space:nowrap; }
 
-    /* Calendar shell */
     .cal-toolbar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
     .cal-label{ font-weight:600; min-width: 180px; }
 
-    /* Month grid */
     .month-grid{
       display:grid;
       grid-template-columns:repeat(7,1fr);
       border:1px solid #e9ecef;
       border-radius:.75rem;
       overflow:hidden;
+      background:#fff;
     }
     .month-head{
       background:#f8fafc;
@@ -137,6 +170,7 @@
     .month-day{ font-size:.85rem; font-weight:600; }
     .month-evt{
       display:block;
+      width:100%;
       font-size:.8rem;
       padding:.2rem .35rem;
       margin:.25rem 0;
@@ -146,7 +180,6 @@
       text-align:left;
       cursor:pointer;
       color:#111827;
-      width:100%;
     }
     .month-evt.full{ opacity:.75; }
     .month-evt.past{
@@ -155,13 +188,13 @@
       color:#6b7280 !important;
     }
 
-    /* Week/Day */
     .time-grid{
       display:grid;
       grid-template-columns:80px repeat(7,1fr);
       border:1px solid #e9ecef;
       border-radius:.75rem;
       overflow:hidden;
+      background:#fff;
     }
     .time-head{
       background:#f8fafc;
@@ -196,20 +229,16 @@
       cursor:pointer;
       color:#111827;
     }
-    .evt-pill.full{
-      opacity:.8;
-    }
+    .evt-pill.full{ opacity:.8; }
     .evt-pill.past{
       background:#e5e7eb !important;
       border-color:#d1d5db !important;
       color:#6b7280 !important;
     }
 
-    /* Modal content helpers */
     .event-detail-meta .badge { margin-right:.35rem; }
     .muted{ color:#94a3b8; }
 
-    /* Modal banner image */
     .ev-banner{
       width:100%;
       margin: .25rem 0 1rem 0;
@@ -224,58 +253,71 @@
       height:auto;
       object-fit:cover;
     }
+
+    @media (max-width: 768px){
+      body.bg-light {
+        overflow: auto;
+      }
+      .events-page-shell{
+        height: auto;
+        min-height: 100vh;
+      }
+      .content-viewport{
+        overflow: visible;
+        min-height: auto;
+      }
+    }
   </style>
 </head>
 <body class="bg-light">
 
-  <main class="container py-4">
-    <!-- Header -->
-    <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="row-gap:.5rem;">
-      <h3 class="page-title mb-0">
-        <img src="/images/logos.png" alt="KW Living" class="logo me-2">
-        <span><i class="bi bi-calendar-event me-1"></i>Event Calendar</span>
-      </h3>
+  <main class="container py-4 events-page-shell">
+    <div class="top-controls">
+      <div class="d-flex align-items-center justify-content-between flex-wrap mb-3" style="row-gap:.5rem;">
+        <h3 class="page-title mb-0">
+          <img src="/images/logos.png" alt="KW Living" class="logo me-2">
+          <span><i class="bi bi-calendar-event me-1"></i>Event Calendar</span>
+        </h3>
 
-      <div class="control-row">
-        <select id="branchFilter" class="form-select filter-control">
-          <option value="ALL">All locations</option>
-        </select>
+        <div class="control-row">
+          <select id="branchFilter" class="form-select filter-control">
+            <option value="ALL">All locations</option>
+          </select>
 
-        <input id="searchInput" class="form-control filter-control" placeholder="Search title, room, description…" />
-      </div>
-    </div>
-
-    <!-- View Switch + Date Nav -->
-    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap" style="row-gap:.5rem;">
-      <div class="btn-group" role="group" aria-label="View">
-        <button class="btn btn-outline-secondary btn-sm active" id="btnMonth">Month</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnWeek">Week</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnDay">Day</button>
-        <button class="btn btn-outline-secondary btn-sm" id="btnList">List</button>
-      </div>
-
-      <div class="cal-toolbar">
-        <div class="btn-group btn-group-sm" role="group">
-          <button class="btn btn-outline-secondary" id="btnPrev"><i class="bi bi-chevron-left"></i></button>
-          <button class="btn btn-outline-secondary" id="btnToday">Today</button>
-          <button class="btn btn-outline-secondary" id="btnNext"><i class="bi bi-chevron-right"></i></button>
+          <input id="searchInput" class="form-control filter-control" placeholder="Search title, room, description…" />
         </div>
-        <span class="cal-label" id="calLabel">Loading…</span>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap" style="row-gap:.5rem;">
+        <div class="btn-group" role="group" aria-label="View">
+          <button class="btn btn-outline-secondary btn-sm active" id="btnMonth">Month</button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnWeek">Week</button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnDay">Day</button>
+          <button class="btn btn-outline-secondary btn-sm" id="btnList">List</button>
+        </div>
+
+        <div class="cal-toolbar">
+          <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-secondary" id="btnPrev"><i class="bi bi-chevron-left"></i></button>
+            <button class="btn btn-outline-secondary" id="btnToday">Today</button>
+            <button class="btn btn-outline-secondary" id="btnNext"><i class="bi bi-chevron-right"></i></button>
+          </div>
+          <span class="cal-label" id="calLabel">Loading…</span>
+        </div>
       </div>
     </div>
 
-    <!-- Calendar/List container -->
-    <div id="calendarContainer" class="mb-4"></div>
+    <div id="contentViewport" class="content-viewport">
+      <div id="calendarContainer" class="mb-4"></div>
 
-    <!-- Legacy list container -->
-    <div id="eventsContainer" class="d-grid" style="gap:1rem;">
-      <div class="text-center text-muted py-4">
-        <div class="spinner-border spinner-border-sm me-2"></div> Loading events…
+      <div id="eventsContainer" class="d-grid" style="gap:1rem;">
+        <div class="text-center text-muted py-4">
+          <div class="spinner-border spinner-border-sm me-2"></div> Loading events…
+        </div>
       </div>
     </div>
   </main>
 
-  <!-- Event Details Modal -->
   <div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
@@ -321,7 +363,6 @@
     </div>
   </div>
 
-  <!-- Registration Modal -->
   <div class="modal fade" id="regModal" tabindex="-1" aria-labelledby="regModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <form class="modal-content" id="regForm">
@@ -359,18 +400,12 @@
     </div>
   </div>
 
-  <!-- Bootstrap + Firebase v8 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <!-- Your Firebase config -->
   <script src="./js/firebaseConfig.js"></script>
-
-  <!-- Page Logic -->
-  <script src="./js/events_public.js?v=20260420-1" defer></script>
-
-  <!-- Email comms -->
-  <script src="./js/events_comm.js?v=20260420-1" defer></script>
+  <script src="./js/events_public.js?v=20260420-3" defer></script>
+  <script src="./js/events_comm.js?v=20260420-3" defer></script>
 </body>
 </html>

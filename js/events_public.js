@@ -5,12 +5,13 @@
 // - Past events display in grey
 // - Filter by branch / search
 // - Event details modal + registration
-// - List view auto-scrolls to current month
+// - List view auto-scrolls to current month inside content viewport
 
 (function() {
   // ---------- DOM ----------
   const containerList = document.getElementById("eventsContainer");
   const containerCal  = document.getElementById("calendarContainer");
+  const contentViewport = document.getElementById("contentViewport");
   const branchFilter  = document.getElementById("branchFilter");
   const searchInput   = document.getElementById("searchInput");
 
@@ -63,7 +64,7 @@
     (typeof window !== "undefined" && window.MAPS_EMBED_API_KEY)
       ? String(window.MAPS_EMBED_API_KEY)
       : null;
-  const MAP_MODE = "auto"; // "auto" | "link"
+  const MAP_MODE = "auto";
 
   // ---------- State ----------
   let allEvents = [];
@@ -227,12 +228,6 @@
     return x;
   }
 
-  function overlaps(evStart, evEnd, rangeStart, rangeEnd) {
-    const s = evStart ? evStart.getTime() : 0;
-    const e = evEnd ? evEnd.getTime() : s;
-    return s < rangeEnd.getTime() && e > rangeStart.getTime();
-  }
-
   function activeViewButton() {
     [btnMonth, btnWeek, btnDay, btnList].forEach(b => b.classList.remove("active"));
     if (currentView === "month") btnMonth.classList.add("active");
@@ -254,16 +249,21 @@
 
   function scrollListToCurrentMonth() {
     if (currentView !== "list") return;
+    if (!contentViewport) return;
 
     requestAnimationFrame(() => {
       const targetMonthKey = getCurrentMonthKey();
       const target = containerList.querySelector(`[data-month-key="${targetMonthKey}"]`);
-      if (target) {
-        target.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      }
+      if (!target) return;
+
+      const viewportRect = contentViewport.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const offset = targetRect.top - viewportRect.top + contentViewport.scrollTop - 12;
+
+      contentViewport.scrollTo({
+        top: Math.max(0, offset),
+        behavior: "smooth"
+      });
     });
   }
 
@@ -445,17 +445,21 @@
     activeViewButton();
 
     if (currentView === "list") {
-      containerCal.innerHTML = "";
+      containerCal.style.display = "none";
+      containerList.style.display = "grid";
       renderList();
       calLabel.textContent = "All Events";
       return;
     }
 
-    containerList.innerHTML = "";
+    containerList.style.display = "none";
+    containerCal.style.display = "";
 
     if (currentView === "month") renderMonth();
     else if (currentView === "week") renderWeek();
     else renderDay();
+
+    if (contentViewport) contentViewport.scrollTo({ top: 0, behavior: "auto" });
   }
 
   // ---------- List view ----------
