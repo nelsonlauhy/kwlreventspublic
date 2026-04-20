@@ -261,12 +261,28 @@
     if (!contentViewport) return;
 
     requestAnimationFrame(() => {
-      const targetMonthKey = getCurrentMonthKey();
-      const target = containerList.querySelector(`[data-month-key="${targetMonthKey}"]`);
-      if (!target) return;
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+
+      const cards = Array.from(containerList.querySelectorAll(".event-card[data-start-ts]"));
+
+      // Find first event starting today or later
+      let targetCard = cards.find(card => {
+        const ts = Number(card.getAttribute("data-start-ts") || 0);
+        return ts >= todayStart.getTime();
+      });
+
+      // Fallback to current month header if no upcoming card found
+      if (!targetCard) {
+        const targetMonthKey = getCurrentMonthKey();
+        targetCard = containerList.querySelector(`[data-month-key="${targetMonthKey}"]`);
+      }
+
+      if (!targetCard) return;
 
       const viewportRect = contentViewport.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
+      const targetRect = targetCard.getBoundingClientRect();
       const offset = targetRect.top - viewportRect.top + contentViewport.scrollTop - 12;
 
       contentViewport.scrollTo({
@@ -681,7 +697,11 @@
     const cardClass = display.past ? "event-card past" : "event-card";
 
     return `
-      <div class="${cardClass}" data-id="${esc(e._id)}" role="button" aria-label="${esc(e.title || 'Event')}">
+      <div class="${cardClass}" 
+        data-id="${esc(e._id)}"
+        data-start-ts="${esc(String(toDate(e.start)?.getTime() || 0))}"
+        role="button"
+        aria-label="${esc(e.title || 'Event')}">
         <div class="event-thumb">
           <div class="thumb-top-title">${esc(thumbTopTitle)}</div>
           <div class="thumb-box">
