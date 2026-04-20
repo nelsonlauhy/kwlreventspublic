@@ -5,6 +5,7 @@
 // - Past events display in grey
 // - Filter by branch / search
 // - Event details modal + registration
+// - List view auto-scrolls to current month
 
 (function() {
   // ---------- DOM ----------
@@ -246,6 +247,26 @@
     render();
   }
 
+  function getCurrentMonthKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function scrollListToCurrentMonth() {
+    if (currentView !== "list") return;
+
+    requestAnimationFrame(() => {
+      const targetMonthKey = getCurrentMonthKey();
+      const target = containerList.querySelector(`[data-month-key="${targetMonthKey}"]`);
+      if (target) {
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+  }
+
   // ---------- Banner helpers ----------
   function pickBannerUrl(ev) {
     const nested = (obj, path) => {
@@ -458,11 +479,12 @@
     const parts = [];
     Object.keys(groups).sort().forEach(key => {
       const g = groups[key];
-      parts.push(`<div class="month-header">${esc(g.label)}</div>`);
+      parts.push(`<div class="month-header" data-month-key="${esc(key)}">${esc(g.label)}</div>`);
       for (const e of g.events) parts.push(renderEventCard(e));
     });
 
     containerList.innerHTML = parts.join("");
+    scrollListToCurrentMonth();
   }
 
   function renderEventCard(e) {
